@@ -1,0 +1,47 @@
+{
+  "name": "ShieldScan Spam Detection",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Scan Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "path": "shieldscan",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Fetch Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "url": "={{$json[\"url\"]}}",
+        "method": "GET",
+        "responseFormat": "string"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Analyse HTML",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "functionCode": "const html = items[0].json || items[0].binary?.data;\nconst text = typeof html === 'string' ? html.toLowerCase() : JSON.stringify(html).toLowerCase();\n\nlet score = 0;\nconst reasons = [];\n\nif (text.includes('casino') || text.includes('viagra') || text.includes('loan')) { score += 3; reasons.push('Spam keywords detected'); }\nif (text.includes('<iframe')) { score += 1; reasons.push('Contains iframes'); }\nif (text.includes('http://')) { score += 1; reasons.push('Insecure http links'); }\n\nreturn [{ json: { riskScore: score, reasons } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Scan Webhook": {
+      "main": [[{ "node": "Fetch Page", "type": "main", "index": 0 }]]
+    },
+    "Fetch Page": {
+      "main": [[{ "node": "Analyse HTML", "type": "main", "index": 0 }]]
+    }
+  }
+}
