@@ -1,0 +1,36 @@
+
+### `workflow.json`
+
+```json
+{
+  "name": "MoodMetrics Sentiment Workflow",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Sentiment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "path": "sentiment-analyse",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Analyse Sentiment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "functionCode": "const texts = items[0].json.items || [];\nconst detailed = [];\nconst summary = { positive: 0, neutral: 0, negative: 0 };\n\nfor (const text of texts) {\n  // TODO: replace with real sentiment model/API\n  let sentiment = 'neutral';\n  const t = text.toLowerCase();\n  if (t.includes('bad') || t.includes('terrible') || t.includes('refund')) sentiment = 'negative';\n  if (t.includes('good') || t.includes('amazing') || t.includes('great')) sentiment = 'positive';\n\n  summary[sentiment]++;\n  detailed.push({ text, sentiment });\n}\n\nreturn [{ json: { summary, detailed } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Sentiment Webhook": {
+      "main": [[{ "node": "Analyse Sentiment", "type": "main", "index": 0 }]]
+    }
+  }
+}
