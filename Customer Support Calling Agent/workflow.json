@@ -1,0 +1,50 @@
+
+### `workflow.json`
+
+```json
+{
+  "name": "CallMind Support Caller",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {}
+    },
+    {
+      "id": "2",
+      "name": "Prepare Call Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "functionCode": "const input = items[0].json;\nconst phone = input.phone || '+911234567890';\nconst name = input.name || 'Customer';\nconst reminder = input.reminder || 'You have an upcoming appointment.';\n\nconst message = `Hello ${name}, this is an automated reminder: ${reminder}`;\n\nreturn [{ json: { phone, message } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Place Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "url": "={{$env.TELEPHONY_API_URL}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headerParametersJson": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.TELEPHONY_API_TOKEN}}\"}",
+        "bodyParametersJson": "{ \"to\": {{$json[\"phone\"]}}, \"message\": {{$json[\"message\"]}} }"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Prepare Call Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Call Data": {
+      "main": [[{ "node": "Place Call", "type": "main", "index": 0 }]]
+    }
+  }
+}
