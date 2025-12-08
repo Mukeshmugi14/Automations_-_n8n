@@ -1,0 +1,49 @@
+{
+  "name": "VoiceReach Telecalling Agent",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Leads Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voicereach-call",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Prepare Call Script",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "functionCode": "const lead = items[0].json;\nconst name = lead.name || 'there';\nconst product = lead.product || 'our service';\nconst script = `Hi ${name}, this is an automated call from the ${product} team. We are checking if you are interested in learning more. Please press 1 if interested, 2 if not interested.`;\n\nreturn [{ json: { phone: lead.phone, script } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Place Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "url": "={{$env.TELEPHONY_API_URL}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "{ \"to\": {{$json[\"phone\"]}}, \"script\": {{$json[\"script\"]}} }"
+      }
+    }
+  ],
+  "connections": {
+    "Leads Webhook": {
+      "main": [[{ "node": "Prepare Call Script", "type": "main", "index": 0 }]]
+    },
+    "Prepare Call Script": {
+      "main": [[{ "node": "Place Call", "type": "main", "index": 0 }]]
+    }
+  }
+}
