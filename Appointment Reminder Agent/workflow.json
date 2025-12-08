@@ -1,0 +1,62 @@
+{
+  "name": "DocReminder Appointment Caller",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Daily Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "triggerTimes": [{ "hour": 7, "minute": 0 }]
+      }
+    },
+    {
+      "id": "2",
+      "name": "Fetch Today Appointments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "url": "={{$env.APPOINTMENT_API_URL}}",
+        "method": "GET",
+        "responseFormat": "json"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Prepare Calls",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "functionCode": "const appointments = items[0].json.appointments || [];\nconst out = [];\nfor (const a of appointments) {\n  const msg = `Hello ${a.patientName}, this is a reminder for your appointment with Dr. ${a.doctorName} on ${a.date} at ${a.time}.`;\n  out.push({ json: { phone: a.phone, message: msg } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Call Patient",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [950, 300],
+      "parameters": {
+        "url": "={{$env.TELEPHONY_API_URL}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "{ \"to\": {{$json[\"phone\"]}}, \"message\": {{$json[\"message\"]}} }"
+      }
+    }
+  ],
+  "connections": {
+    "Daily Cron": {
+      "main": [[{ "node": "Fetch Today Appointments", "type": "main", "index": 0 }]]
+    },
+    "Fetch Today Appointments": {
+      "main": [[{ "node": "Prepare Calls", "type": "main", "index": 0 }]]
+    },
+    "Prepare Calls": {
+      "main": [[{ "node": "Call Patient", "type": "main", "index": 0 }]]
+    }
+  }
+}
