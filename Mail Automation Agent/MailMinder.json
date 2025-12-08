@@ -1,0 +1,42 @@
+{
+  "name": "MailMinder Automation",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "IMAP Email Trigger",
+      "type": "n8n-nodes-base.imapEmail",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "mailbox": "INBOX",
+        "downloadAttachments": false
+      }
+    },
+    {
+      "id": "2",
+      "name": "Classify Email",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "functionCode": "const email = items[0].json;\nconst from = email.from || '';\nconst subject = email.subject || '';\nconst text = email.text || '';\n\nlet category = 'other';\n\nif (from.includes('no-reply') || subject.toLowerCase().includes('newsletter')) category = 'newsletter';\nif (subject.toLowerCase().includes('invoice') || subject.toLowerCase().includes('payment')) category = 'important';\nif (subject.toLowerCase().includes('win money') || text.toLowerCase().includes('lottery')) category = 'spam';\n\nreturn [{ json: { from, subject, category } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Log to Sheet / DB",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "IMAP Email Trigger": {
+      "main": [[{ "node": "Classify Email", "type": "main", "index": 0 }]]
+    },
+    "Classify Email": {
+      "main": [[{ "node": "Log to Sheet / DB", "type": "main", "index": 0 }]]
+    }
+  }
+}
