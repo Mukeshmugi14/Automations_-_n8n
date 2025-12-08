@@ -1,0 +1,69 @@
+{
+  "name": "LexiChat WhatsApp Legal Assistant",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lexichat-whatsapp",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "functionCode": "const body = items[0].json;\nconst userMessage = body.message || body.text || JSON.stringify(body);\n\nconst prompt = `You are a legal information assistant, not a lawyer. Explain legal terms, clauses, or questions in simple language. Always add: \"This is not legal advice\". User input: ${userMessage}`;\n\nreturn [{ json: { prompt, raw: body } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Call LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headerParametersJson": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.OPENAI_API_KEY}}\"}",
+        "bodyParametersJson": "{ \"model\": \"gpt-4o-mini\", \"messages\": [ { \"role\": \"user\", \"content\": {{$json[\"prompt\"]}} } ] }"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [950, 300],
+      "parameters": {
+        "url": "={{$env.WHATSAPP_API_URL}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headerParametersJson": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.WHATSAPP_API_TOKEN}}\"}",
+        "bodyParametersJson": "{ \"to\": {{$json[\"raw\"][\"from\"]}}, \"message\": {{$json[\"choices\"][0][\"message\"][\"content\"]}} }"
+      }
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [[{ "node": "Prepare Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Prompt": {
+      "main": [[{ "node": "Call LLM", "type": "main", "index": 0 }]]
+    },
+    "Call LLM": {
+      "main": [[{ "node": "Send WhatsApp Reply", "type": "main", "index": 0 }]]
+    }
+  }
+}
