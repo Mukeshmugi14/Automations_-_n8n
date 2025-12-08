@@ -1,0 +1,66 @@
+{
+  "name": "NeoChat Telegram Bot",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "updates": ["message"],
+        "botToken": "={{$env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "functionCode": "const msg = items[0].json.message.text || '';\nitems[0].json = {\n  prompt: `You are NeoChat, a friendly AI assistant chatting on Telegram. Answer the user clearly and concisely. User: ${msg}`\n};\nreturn items;"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Call LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "headerParametersJson": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.OPENAI_API_KEY}}\"}",
+        "bodyParametersJson": "{ \"model\": \"gpt-4o-mini\", \"messages\": [ { \"role\": \"user\", \"content\": {{$json[\"prompt\"]}} } ] }"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send Telegram Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
+        "text": "={{$json[\"choices\"][0][\"message\"][\"content\"]}}",
+        "botToken": "={{$env.TELEGRAM_BOT_TOKEN}}"
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Prepare Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Prompt": {
+      "main": [[{ "node": "Call LLM", "type": "main", "index": 0 }]]
+    },
+    "Call LLM": {
+      "main": [[{ "node": "Send Telegram Reply", "type": "main", "index": 0 }]]
+    }
+  }
+}
