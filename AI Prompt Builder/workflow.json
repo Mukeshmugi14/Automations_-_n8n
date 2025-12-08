@@ -1,0 +1,36 @@
+
+### `workflow.json`
+
+```json
+{
+  "name": "PromptSmith Prompt Builder",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Prompt Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "promptsmith",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "functionCode": "const body = items[0].json;\nconst goal = body.goal || 'No goal provided';\nconst audience = body.audience || 'general audience';\nconst tone = body.tone || 'neutral';\nconst format = body.format || 'any format';\n\nconst prompt = `You are an expert assistant. Task: ${goal}. Audience: ${audience}. Tone: ${tone}. Output format: ${format}. Ask for clarification if the request is ambiguous.`;\n\nreturn [{ json: { prompt } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Prompt Webhook": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    }
+  }
+}
