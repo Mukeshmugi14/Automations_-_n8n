@@ -1,0 +1,64 @@
+{
+  "name": "AutoReel Studio Content Agent",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Content Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "autoreel-generate",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Prepare Script Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "functionCode": "const body = items[0].json;\nconst topic = body.topic || 'general topic';\n\nconst prompt = `Create a 30-45 second YouTube Short script about: ${topic}. Structure: Hook (1 line), Value (3-5 lines), CTA (1 line). Output in plain text.`;\n\nreturn [{ json: { prompt, topic } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Call LLM for Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headerParametersJson": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.OPENAI_API_KEY}}\"}",
+        "bodyParametersJson": "{ \"model\": \"gpt-4o-mini\", \"messages\": [ { \"role\": \"user\", \"content\": {{$json[\"prompt\"]}} } ] }"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [950, 300],
+      "parameters": {
+        "functionCode": "const res = items[0].json;\nconst script = res.choices?.[0]?.message?.content || '';\n\nconst topic = $json.topic || 'Video';\nconst title = `Short: ${topic}`;\nconst description = `Short video about ${topic}.\\n\\nScript:\\n${script}`;\n\nreturn [{ json: { title, description, script } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Content Webhook": {
+      "main": [[{ "node": "Prepare Script Prompt", "type": "main", "index": 0 }]]
+    },
+    "Prepare Script Prompt": {
+      "main": [[{ "node": "Call LLM for Script", "type": "main", "index": 0 }]]
+    },
+    "Call LLM for Script": {
+      "main": [[{ "node": "Format Output", "type": "main", "index": 0 }]]
+    }
+  }
+}
